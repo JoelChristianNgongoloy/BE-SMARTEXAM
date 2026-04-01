@@ -1,0 +1,824 @@
+erDiagram
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% SMART EXAM TELKOM — EXAM MANAGEMENT SYSTEM ERD
+    %% Migrated from: SmartEDU LMS (Telkom + ITB merged)
+    %% Focus: Exam-centric (bukan course-centric)
+    %% Architecture: UUID PK, multi-tenant
+    %% ═══════════════════════════════════════════════════════════════
+
+    %% ─── AUTH & USER ───
+    users {
+        uuid id PK
+        string name
+        string email
+        string phone
+        string picture
+        string locale
+        string timezone
+        string status
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+    }
+    roles {
+        uuid id PK
+        string name
+        string description
+    }
+    permissions {
+        uuid id PK
+        string name
+        string description
+    }
+    user_roles {
+        uuid id PK
+        uuid user_id FK
+        uuid role_id FK
+    }
+    role_permissions {
+        uuid id PK
+        uuid role_id FK
+        uuid permission_id FK
+    }
+    user_sessions {
+        uuid id PK
+        uuid user_id FK
+        string ip_address
+        string user_agent
+        string device
+        timestamp last_active
+        timestamp expired_at
+    }
+    password_resets {
+        uuid id PK
+        uuid user_id FK
+        string token
+        timestamp expired_at
+        timestamp created_at
+    }
+
+    %% ─── TENANT & ORG ───
+    tenants {
+        uuid id PK
+        string name
+        string domain
+        string logo
+        string status
+        timestamp created_at
+    }
+    tenant_users {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        string role
+    }
+    organizations {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string type
+        string description
+    }
+    organization_users {
+        uuid id PK
+        uuid organization_id FK
+        uuid user_id FK
+        string role
+    }
+
+    %% ─── EXAM CATEGORIES ───
+    exam_categories {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string slug
+        text description
+        uuid parent_id FK
+        int position
+    }
+
+    %% ─── EXAMS (core entity, replaces courses+quizzes) ───
+    exams {
+        uuid id PK
+        uuid tenant_id FK
+        uuid category_id FK
+        string title
+        string slug
+        text description
+        string exam_type
+        int time_limit_minutes
+        int max_attempts
+        int pass_percentage
+        decimal total_score
+        boolean random_questions
+        boolean random_answers
+        string show_result_mode
+        boolean allow_review
+        boolean shuffle_sections
+        boolean require_proctoring
+        string feedback_type
+        text instructions
+        string status
+        uuid created_by FK
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at
+    }
+
+    %% ─── EXAM SECTIONS (bagian dalam 1 ujian) ───
+    exam_sections {
+        uuid id PK
+        uuid exam_id FK
+        string title
+        text instruction
+        int position
+        int time_limit_seconds
+        int question_count
+    }
+
+    %% ─── QUESTION BANK ───
+    question_bank_folders {
+        uuid id PK
+        uuid tenant_id FK
+        uuid parent_id FK
+        string name
+        text description
+        int position
+    }
+    question_categories {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        text description
+    }
+    questions {
+        uuid id PK
+        uuid tenant_id FK
+        uuid category_id FK
+        uuid folder_id FK
+        text question_text
+        text description
+        text explanation
+        string type
+        int points
+        int position
+        string difficulty_level
+        int time_estimate_seconds
+        string picture
+        boolean is_shared
+        uuid created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    options {
+        uuid id PK
+        uuid question_id FK
+        string option_text
+        boolean is_correct
+        decimal weight
+        int position
+        text feedback
+    }
+    question_attachments {
+        uuid id PK
+        uuid question_id FK
+        string file_name
+        string file_path
+        string file_type
+        int file_size
+        int position
+    }
+
+    %% ─── EXAM ↔ QUESTION MAPPING ───
+    exam_questions {
+        uuid id PK
+        uuid section_id FK
+        uuid question_id FK
+        int position
+        decimal weight
+    }
+
+    %% ─── GRADING RUBRICS (for essay/open-ended) ───
+    grading_rubrics {
+        uuid id PK
+        uuid question_id FK
+        string title
+        text description
+        decimal max_score
+        uuid created_by FK
+        timestamp created_at
+    }
+    rubric_criteria {
+        uuid id PK
+        uuid rubric_id FK
+        string criterion
+        text description
+        decimal max_score
+        int position
+    }
+
+    %% ─── EXAM SCHEDULING ───
+    exam_schedules {
+        uuid id PK
+        uuid exam_id FK
+        timestamp start_time
+        timestamp end_time
+        int max_participants
+        string location
+        boolean is_active
+        timestamp created_at
+    }
+    exam_rooms {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string type
+        int capacity
+        json browser_lockdown_config
+        boolean is_active
+    }
+
+    %% ─── EXAM REGISTRATION ───
+    exam_registrations {
+        uuid id PK
+        uuid exam_id FK
+        uuid user_id FK
+        uuid schedule_id FK
+        string status
+        timestamp registered_at
+    }
+
+    %% ─── EXAM SESSIONS & PROCTORING ───
+    exam_sessions {
+        uuid id PK
+        uuid exam_id FK
+        uuid schedule_id FK
+        uuid room_id FK
+        uuid student_id FK
+        timestamp start_time
+        timestamp end_time
+        string ip_address
+        string device_info
+        boolean is_proctored
+        boolean browser_lockdown
+        boolean webcam_required
+    }
+    proctor_assignments {
+        uuid id PK
+        uuid session_id FK
+        uuid proctor_id FK
+        string role
+        timestamp assigned_at
+    }
+    cheating_logs {
+        uuid id PK
+        uuid session_id FK
+        string event
+        text detail
+        string severity
+        string screenshot_url
+        timestamp event_time
+    }
+
+    %% ─── ATTEMPTS & ANSWERS ───
+    exam_attempts {
+        uuid id PK
+        uuid exam_id FK
+        uuid student_id FK
+        uuid session_id FK
+        decimal score
+        boolean passed
+        int questions_answered
+        int time_spent_seconds
+        string ip_address
+        string device_info
+        timestamp started_at
+        timestamp submitted_at
+    }
+    exam_attempt_answers {
+        uuid id PK
+        uuid attempt_id FK
+        uuid question_id FK
+        text answer
+        decimal score
+        boolean is_correct
+        int time_spent_seconds
+        timestamp answered_at
+    }
+
+    %% ─── EXAM RESULTS (formal) ───
+    exam_results {
+        uuid id PK
+        uuid attempt_id FK
+        uuid user_id FK
+        uuid exam_id FK
+        decimal total_score
+        decimal max_score
+        decimal percentage
+        string grade
+        boolean is_passed
+        decimal percentile_rank
+        timestamp published_at
+        timestamp created_at
+    }
+
+    %% ─── EXAM APPEALS ───
+    exam_appeals {
+        uuid id PK
+        uuid result_id FK
+        uuid user_id FK
+        text reason
+        string status
+        text resolution
+        uuid resolved_by FK
+        timestamp created_at
+        timestamp resolved_at
+    }
+
+    %% ─── EXAM ANALYTICS (aggregate stats) ───
+    exam_analytics {
+        uuid id PK
+        uuid exam_id FK
+        int total_participants
+        int total_completions
+        decimal avg_score
+        decimal pass_rate
+        decimal difficulty_index
+        decimal discrimination_index
+        timestamp calculated_at
+    }
+
+    %% ─── CERTIFICATES ───
+    certificate_templates {
+        uuid id PK
+        string name
+        text description
+        string orientation
+        string background_url
+        json fields
+        boolean is_default
+        uuid created_by FK
+        timestamp created_at
+    }
+    certificates {
+        uuid id PK
+        uuid user_id FK
+        uuid exam_id FK
+        uuid template_id FK
+        string certificate_number
+        string certificate_url
+        json metadata
+        timestamp issued_at
+    }
+
+    %% ─── GAMIFICATION ───
+    badges {
+        uuid id PK
+        string name
+        string description
+        string icon
+        string criteria
+    }
+    user_badges {
+        uuid id PK
+        uuid user_id FK
+        uuid badge_id FK
+        timestamp earned_at
+    }
+    points {
+        uuid id PK
+        uuid user_id FK
+        int points
+        string source
+        uuid source_id
+        timestamp earned_at
+    }
+
+    %% ─── BILLING ───
+    plans {
+        uuid id PK
+        string name
+        text description
+        decimal price
+        int duration_days
+        boolean is_active
+    }
+    subscriptions {
+        uuid id PK
+        uuid user_id FK
+        uuid plan_id FK
+        timestamp start_date
+        timestamp end_date
+        string status
+    }
+    transactions {
+        uuid id PK
+        uuid user_id FK
+        uuid subscription_id FK
+        decimal amount
+        string currency
+        string status
+        string payment_method
+        string payment_ref
+        timestamp created_at
+    }
+    invoices {
+        uuid id PK
+        uuid user_id FK
+        uuid transaction_id FK
+        string invoice_number
+        decimal total
+        string status
+        timestamp issued_at
+        timestamp paid_at
+    }
+    coupons {
+        uuid id PK
+        string code
+        string type
+        decimal value
+        decimal min_purchase
+        int max_uses
+        int used_count
+        uuid plan_id FK
+        boolean is_active
+        timestamp valid_from
+        timestamp valid_until
+        timestamp created_at
+    }
+    coupon_usages {
+        uuid id PK
+        uuid coupon_id FK
+        uuid user_id FK
+        uuid transaction_id FK
+        timestamp used_at
+    }
+
+    %% ─── COMMUNICATION ───
+    announcements {
+        uuid id PK
+        uuid tenant_id FK
+        string title
+        text message
+        uuid created_by FK
+        boolean email_sent
+        timestamp created_at
+    }
+    announcement_attachments {
+        uuid id PK
+        uuid announcement_id FK
+        string file_name
+        string file_path
+        string file_type
+        int file_size
+    }
+    notifications {
+        uuid id PK
+        uuid user_id FK
+        string type
+        string title
+        text message
+        boolean is_read
+        string link
+        timestamp created_at
+    }
+    notification_channels {
+        uuid id PK
+        uuid user_id FK
+        string channel
+        boolean is_enabled
+        json preferences
+    }
+    messages {
+        uuid id PK
+        uuid sender_id FK
+        uuid receiver_id FK
+        string subject
+        text content
+        boolean is_read
+        timestamp sent_at
+    }
+    message_attachments {
+        uuid id PK
+        uuid message_id FK
+        string file_name
+        string file_path
+        string file_type
+        int file_size
+    }
+
+    %% ─── CALENDAR ───
+    calendar_events {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        uuid exam_id FK
+        string title
+        text description
+        string color
+        timestamp start_date
+        timestamp end_date
+        boolean all_day
+        string repeat_type
+        timestamp created_at
+    }
+
+    %% ─── MEDIA ───
+    media_files {
+        uuid id PK
+        uuid owner_id FK
+        string file_name
+        string file_path
+        string file_type
+        int file_size
+        string context
+        uuid context_id
+        timestamp uploaded_at
+    }
+
+    %% ─── TAGS ───
+    tags {
+        uuid id PK
+        string name
+        string slug
+        string type
+    }
+    taggables {
+        uuid id PK
+        uuid tag_id FK
+        string taggable_type
+        uuid taggable_id
+    }
+
+    %% ─── SUPPORT TICKETS ───
+    ticket_categories {
+        uuid id PK
+        string name
+        text description
+        boolean is_active
+    }
+    ticket_priorities {
+        uuid id PK
+        string name
+        string color
+        int position
+    }
+    ticket_statuses {
+        uuid id PK
+        string name
+        string color
+        int position
+    }
+    tickets {
+        uuid id PK
+        uuid user_id FK
+        uuid exam_id FK
+        uuid category_id FK
+        uuid priority_id FK
+        uuid status_id FK
+        string code
+        string subject
+        text message
+        uuid assigned_to FK
+        timestamp created_at
+        timestamp updated_at
+        timestamp closed_at
+    }
+    ticket_messages {
+        uuid id PK
+        uuid ticket_id FK
+        uuid user_id FK
+        text content
+        string attachment_url
+        timestamp created_at
+    }
+
+    %% ─── LOGGING & AUDIT ───
+    events {
+        uuid id PK
+        uuid user_id FK
+        string event_type
+        string entity_type
+        uuid entity_id
+        json metadata
+        timestamp created_at
+    }
+    activity_logs {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string entity_type
+        uuid entity_id
+        json metadata
+        timestamp created_at
+    }
+    audit_logs {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string entity_type
+        uuid entity_id
+        json old_data
+        json new_data
+        timestamp created_at
+    }
+    login_logs {
+        uuid id PK
+        uuid user_id FK
+        string ip_address
+        string user_agent
+        string device
+        timestamp login_at
+        timestamp logout_at
+    }
+
+    %% ─── WEBHOOKS / INTEGRATIONS ───
+    webhooks {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string url
+        string secret
+        string events
+        boolean is_active
+        timestamp created_at
+    }
+    webhook_logs {
+        uuid id PK
+        uuid webhook_id FK
+        string event
+        string payload
+        int response_code
+        text response_body
+        timestamp sent_at
+    }
+
+    %% ─── SYSTEM ───
+    feature_flags {
+        uuid id PK
+        string name
+        boolean is_enabled
+        text description
+    }
+    settings {
+        uuid id PK
+        string category
+        string key
+        string value
+    }
+    user_preferences {
+        uuid id PK
+        uuid user_id FK
+        string key
+        string value
+    }
+
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% RELATIONS
+    %% ═══════════════════════════════════════════════════════════════
+
+    %% ─── Auth & User ───
+    users ||--o{ user_roles : "has"
+    roles ||--o{ user_roles : "assigned"
+    roles ||--o{ role_permissions : "has"
+    permissions ||--o{ role_permissions : "assigned"
+    users ||--o{ user_sessions : "has"
+    users ||--o{ password_resets : "has"
+
+    %% ─── Tenant & Org ───
+    tenants ||--o{ tenant_users : "has"
+    users ||--o{ tenant_users : "belongs"
+    tenants ||--o{ organizations : "contains"
+    organizations ||--o{ organization_users : "has"
+    users ||--o{ organization_users : "belongs"
+
+    %% ─── Exam Categories ───
+    tenants ||--o{ exam_categories : "owns"
+    exam_categories ||--o{ exam_categories : "parent"
+    exam_categories ||--o{ exams : "categorizes"
+
+    %% ─── Exams ───
+    tenants ||--o{ exams : "owns"
+    users ||--o{ exams : "creates"
+
+    %% ─── Exam Sections ───
+    exams ||--o{ exam_sections : "has"
+
+    %% ─── Question Bank ───
+    tenants ||--o{ question_bank_folders : "owns"
+    question_bank_folders ||--o{ question_bank_folders : "parent"
+    tenants ||--o{ question_categories : "owns"
+    question_categories ||--o{ questions : "categorizes"
+    question_bank_folders ||--o{ questions : "contains"
+    questions ||--o{ options : "has"
+    questions ||--o{ question_attachments : "has"
+
+    %% ─── Exam ↔ Question Mapping ───
+    exam_sections ||--o{ exam_questions : "contains"
+    questions ||--o{ exam_questions : "used_in"
+
+    %% ─── Grading Rubrics ───
+    questions ||--o{ grading_rubrics : "has"
+    grading_rubrics ||--o{ rubric_criteria : "has"
+
+    %% ─── Exam Scheduling ───
+    exams ||--o{ exam_schedules : "scheduled"
+    tenants ||--o{ exam_rooms : "owns"
+
+    %% ─── Exam Registration ───
+    exams ||--o{ exam_registrations : "has"
+    users ||--o{ exam_registrations : "registers"
+    exam_schedules ||--o{ exam_registrations : "for"
+
+    %% ─── Exam Sessions & Proctoring ───
+    exams ||--o{ exam_sessions : "has"
+    exam_schedules ||--o{ exam_sessions : "during"
+    exam_rooms ||--o{ exam_sessions : "in"
+    users ||--o{ exam_sessions : "takes"
+    exam_sessions ||--o{ proctor_assignments : "has"
+    users ||--o{ proctor_assignments : "proctors"
+    exam_sessions ||--o{ cheating_logs : "logs"
+
+    %% ─── Attempts & Answers ───
+    exams ||--o{ exam_attempts : "has"
+    users ||--o{ exam_attempts : "takes"
+    exam_sessions ||--o{ exam_attempts : "during"
+    exam_attempts ||--o{ exam_attempt_answers : "contains"
+    questions ||--o{ exam_attempt_answers : "answered_in"
+
+    %% ─── Exam Results ───
+    exam_attempts ||--o{ exam_results : "produces"
+    users ||--o{ exam_results : "receives"
+    exams ||--o{ exam_results : "has"
+
+    %% ─── Exam Appeals ───
+    exam_results ||--o{ exam_appeals : "appealed"
+    users ||--o{ exam_appeals : "submits"
+
+    %% ─── Exam Analytics ───
+    exams ||--o{ exam_analytics : "analyzed"
+
+    %% ─── Certificates ───
+    certificate_templates ||--o{ certificates : "generates"
+    users ||--o{ certificates : "earns"
+    exams ||--o{ certificates : "issues"
+
+    %% ─── Gamification ───
+    badges ||--o{ user_badges : "awarded"
+    users ||--o{ user_badges : "earns"
+    users ||--o{ points : "earns"
+
+    %% ─── Billing ───
+    plans ||--o{ subscriptions : "has"
+    users ||--o{ subscriptions : "subscribes"
+    users ||--o{ transactions : "makes"
+    subscriptions ||--o{ transactions : "for"
+    transactions ||--o{ invoices : "generates"
+    users ||--o{ invoices : "receives"
+    plans ||--o{ coupons : "discounts"
+    coupons ||--o{ coupon_usages : "used"
+    users ||--o{ coupon_usages : "redeems"
+    transactions ||--o{ coupon_usages : "applied"
+
+    %% ─── Communication ───
+    tenants ||--o{ announcements : "has"
+    announcements ||--o{ announcement_attachments : "has"
+    users ||--o{ notifications : "receives"
+    users ||--o{ notification_channels : "configures"
+    users ||--o{ messages : "sends"
+    users ||--o{ messages : "receives"
+    messages ||--o{ message_attachments : "has"
+
+    %% ─── Calendar ───
+    exams ||--o{ calendar_events : "scheduled_in"
+    users ||--o{ calendar_events : "creates"
+
+    %% ─── Media ───
+    users ||--o{ media_files : "uploads"
+
+    %% ─── Tags ───
+    tags ||--o{ taggables : "tagged"
+
+    %% ─── Support Tickets ───
+    ticket_categories ||--o{ tickets : "categorizes"
+    ticket_priorities ||--o{ tickets : "prioritizes"
+    ticket_statuses ||--o{ tickets : "status"
+    users ||--o{ tickets : "creates"
+    exams ||--o{ tickets : "related"
+    tickets ||--o{ ticket_messages : "has"
+    users ||--o{ ticket_messages : "writes"
+
+    %% ─── Logging & Audit ───
+    users ||--o{ events : "triggers"
+    users ||--o{ activity_logs : "logs"
+    users ||--o{ audit_logs : "logs"
+    users ||--o{ login_logs : "logs"
+
+    %% ─── Webhooks ───
+    tenants ||--o{ webhooks : "configures"
+    webhooks ||--o{ webhook_logs : "logs"
+
+    %% ─── System ───
+    users ||--o{ user_preferences : "has"
