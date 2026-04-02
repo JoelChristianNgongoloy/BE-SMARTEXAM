@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V9
 -- Title       : Init Communication
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Announcements, push/email notifications, notification preferences,
 --               and direct messaging between users

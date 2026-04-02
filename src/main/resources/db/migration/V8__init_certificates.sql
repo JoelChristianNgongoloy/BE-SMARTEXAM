@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V8
 -- Title       : Init Certificates
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Certificate templates and issued certificates per exam result
 -- ===================================================================================

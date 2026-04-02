@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V12
 -- Title       : Init Support, Logging & System
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Support tickets, audit/activity/login logs, event bus log,
 --               webhook integrations, feature flags, settings, user preferences

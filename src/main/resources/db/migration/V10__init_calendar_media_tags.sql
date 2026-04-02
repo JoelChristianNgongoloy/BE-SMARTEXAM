@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V10
 -- Title       : Init Calendar, Media & Tags
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Calendar events linked to exams, central media file store,
 --               polymorphic tag system
@@ -61,7 +61,7 @@ CREATE TABLE tags (
     name            VARCHAR(100)    NOT NULL,
     slug            VARCHAR(100)    NOT NULL,
     type            VARCHAR(50),
-    UNIQUE (slug, type)
+    UNIQUE NULLS NOT DISTINCT (slug, type)
 );
 
 CREATE INDEX idx_tags_type ON tags (type);

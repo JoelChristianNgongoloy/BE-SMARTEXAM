@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V4
 -- Title       : Init Question Bank
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Hierarchical question folders, categories, questions, answer
 --               options, attachments, and exam-section-to-question mapping

@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V2
 -- Title       : Init Organization & Multitenancy
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Tenants (schools/institutions), tenant membership, organizations
 --               (faculties/departments), and org membership

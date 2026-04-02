@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V7
 -- Title       : Init Results & Analytics
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Formal exam results, appeal system, and aggregate analytics
 -- ===================================================================================

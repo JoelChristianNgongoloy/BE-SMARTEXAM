@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V1
 -- Title       : Init Core Auth System
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Users, RBAC (roles & permissions), sessions, password resets
 -- ===================================================================================
@@ -14,6 +14,7 @@ CREATE TABLE users (
     id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(255)    NOT NULL,
     email           VARCHAR(255)    NOT NULL UNIQUE,
+    password_hash   VARCHAR(255),
     phone           VARCHAR(50),
     picture         TEXT,
     locale          VARCHAR(10)     NOT NULL DEFAULT 'id',

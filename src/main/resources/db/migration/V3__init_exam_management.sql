@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V3
 -- Title       : Init Exam Management
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Exam categories (tree), exams (core entity), exam sections
 -- ===================================================================================

@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V11
 -- Title       : Init Gamification & Billing
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Badges, points, subscription plans, transactions, invoices,
 --               coupons and coupon usage tracking

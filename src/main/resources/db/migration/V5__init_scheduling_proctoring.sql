@@ -1,7 +1,7 @@
 -- ===================================================================================
 -- Migration   : V5
 -- Title       : Init Scheduling & Proctoring
--- Author      : SmartEdu Telu
+-- Author      : JiilanTj
 -- Date        : 2026-04-01
 -- Description : Exam schedules, exam rooms, registrations, live exam sessions,
 --               proctor assignments, and cheating event logs
