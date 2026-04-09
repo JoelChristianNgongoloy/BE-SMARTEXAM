@@ -1,6 +1,8 @@
 # ═══════════════════════════════════════════════════════════════
-# SmartEdu Telu — Makefile
+# SmartEdu Telu — Makefile (Windows-compatible via PowerShell)
 # ═══════════════════════════════════════════════════════════════
+SHELL          = pwsh.exe
+.SHELLFLAGS    = -NoProfile -Command
 
 # ── Variables ─────────────────────────────────────────────────
 COMPOSE        = docker compose
@@ -16,7 +18,7 @@ MIGRATION_DIR  = src/main/resources/db/migration
 
 .PHONY: env
 env: ## Copy .env.example ke .env (skip kalau sudah ada)
-	@if [ ! -f .env ]; then cp .env.example .env && echo "✅ .env created from .env.example"; else echo "⏭️  .env already exists, skipping"; fi
+	@if (-not (Test-Path .env)) { Copy-Item .env.example .env; Write-Host '✅ .env created from .env.example' } else { Write-Host '⏭️  .env already exists, skipping' }
 
 # ═══════════════════════════════════════════════════════════════
 # DOCKER COMPOSE — INFRA (postgres + redis)
@@ -25,10 +27,9 @@ env: ## Copy .env.example ke .env (skip kalau sudah ada)
 .PHONY: infra-up
 infra-up: env ## Start infra only (postgres + redis)
 	$(COMPOSE) up postgres redis -d
-	@echo "⏳ Waiting for PostgreSQL healthy..."
-	@docker inspect --format='{{.State.Health.Status}}' $(CONTAINER_PG) 2>/dev/null | grep -q healthy || \
-		(for i in $$(seq 1 30); do sleep 1; docker inspect --format='{{.State.Health.Status}}' $(CONTAINER_PG) 2>/dev/null | grep -q healthy && break; done)
-	@echo "✅ Infra is up"
+	@Write-Host '⏳ Waiting for PostgreSQL healthy...'
+	@for ($$i = 0; $$i -lt 30; $$i++) { $$s = docker inspect --format='{{.State.Health.Status}}' $(CONTAINER_PG) 2>$$null; if ($$s -eq 'healthy') { break }; Start-Sleep -Seconds 1 }
+	@Write-Host '✅ Infra is up'
 
 .PHONY: infra-down
 infra-down: ## Stop infra containers
@@ -45,10 +46,10 @@ infra-logs: ## Tail infra logs
 .PHONY: dev-up
 dev-up: infra-up ## Start infra + all dev tools
 	$(COMPOSE) --profile dev up -d
-	@echo "✅ Dev environment is up"
-	@echo "   pgAdmin      → http://localhost:$${PGADMIN_PORT:-5050}"
-	@echo "   RedisInsight  → http://localhost:$${REDISINSIGHT_PORT:-5540}"
-	@echo "   Mailpit       → http://localhost:$${MAILPIT_UI_PORT:-8025}"
+	@Write-Host '✅ Dev environment is up'
+	@Write-Host '   pgAdmin      → http://localhost:5050'
+	@Write-Host '   RedisInsight  → http://localhost:5540'
+	@Write-Host '   Mailpit       → http://localhost:8025'
 
 .PHONY: dev-down
 dev-down: ## Stop all dev tool containers
@@ -65,7 +66,7 @@ dev-logs: ## Tail dev tools logs
 .PHONY: up
 up: env ## Start everything (app + infra)
 	$(COMPOSE) up -d --build
-	@echo "✅ Full stack is up → http://localhost:$${SERVER_PORT:-8080}/api/actuator/health"
+	@Write-Host '✅ Full stack is up → http://localhost:8080/api/actuator/health'
 
 .PHONY: down
 down: ## Stop all containers
@@ -92,12 +93,9 @@ ps: ## Show running containers
 
 .PHONY: migrate
 migrate: infra-up ## Run ALL Flyway migrations via psql (V1..V12)
-	@echo "🚀 Running migrations..."
-	@for f in $$(ls $(MIGRATION_DIR)/V*.sql | sort -t'V' -k2 -n); do \
-		echo "── $$f"; \
-		cat "$$f" | docker exec -i $(CONTAINER_PG) psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 || { echo "❌ FAILED at $$f"; exit 1; }; \
-	done
-	@echo "✅ All migrations applied"
+	@Write-Host '🚀 Running migrations...'
+	@Get-ChildItem $(MIGRATION_DIR)/V*.sql | Sort-Object { [int]($$_.Name -replace '^V(\d+)__.*','$$1') } | ForEach-Object { Write-Host "── $$_"; Get-Content $$_.FullName | docker exec -i $(CONTAINER_PG) psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1; if ($$LASTEXITCODE -ne 0) { Write-Host '❌ FAILED'; exit 1 } }
+	@Write-Host '✅ All migrations applied'
 
 .PHONY: migrate-validate
 migrate-validate: ## Dry-run: validate migrations via psql in a transaction then rollback
