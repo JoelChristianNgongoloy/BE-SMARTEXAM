@@ -1,24 +1,37 @@
 package com.tujuhsembilan.smartedutelu.common.security;
 
+import com.tujuhsembilan.smartedutelu.domain.identity.entity.User;
+import com.tujuhsembilan.smartedutelu.domain.identity.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.stream.Collectors;
+
 @Service
+@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    // TODO: Injeksi UserRepository di sini saat entitas User sudah dibuat
+    private final UserRepository userRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // Logika untuk mengambil data dari database aplikasi
-        // Contoh implementasi kasar:
-        // User user = userRepository.findByUsername(username)
-        //     .orElseThrow(() -> new UsernameNotFoundException("Pengguna tidak ditemukan"));
-        // return new org.springframework.security.core.userdetails.User(
-        //     user.getUsername(), user.getPassword(), user.getAuthorities());
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmailWithRoles(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Pengguna dengan email '" + email + "' tidak ditemukan"));
 
-        throw new UnsupportedOperationException("Harap integrasikan dengan UserRepository smartedu-be");
+        var authorities = user.getUserRoles().stream()
+                .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getName().toUpperCase()))
+                .collect(Collectors.toList());
+
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail())
+                .password(user.getPasswordHash())
+                .authorities(authorities)
+                .disabled(!"active".equals(user.getStatus()))
+                .accountLocked("suspended".equals(user.getStatus()))
+                .build();
     }
 }

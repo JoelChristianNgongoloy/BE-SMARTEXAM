@@ -23,6 +23,10 @@ public enum ErrorCode {
     // Auth & Security Errors (SE-AUT-xxx)
     SE_AUT_001("SE-AUT-001", "Invalid credentials"),
     SE_AUT_002("SE-AUT-002", "Token expired or invalid"),
+    SE_AUT_003("SE-AUT-003", "Account is not active"),
+    SE_AUT_004("SE-AUT-004", "Email already registered"),
+    SE_AUT_005("SE-AUT-005", "Password reset token invalid or expired"),
+    SE_AUT_006("SE-AUT-006", "Current password is incorrect"),
 
     // Organization / Tenant Errors (SE-ORG-xxx)
     SE_ORG_001("SE-ORG-001", "Organization not found"),

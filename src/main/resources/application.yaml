@@ -6,9 +6,6 @@ server:
 spring:
   application:
     name: smartedutelu
-    jwt:
-      secret-key: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-      expiration-ms: ${JWT_EXPIRATION:86400000} # 1 Hari
 
   # ── PostgreSQL ──────────────────────────────────────────
   datasource:
@@ -73,6 +70,17 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+
+# ── JWT / Auth ─────────────────────────────────────────
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      expiration-ms: ${JWT_EXPIRATION:86400000} # 1 Hari (access token)
+      refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000} # 7 Hari (refresh token)
+  mail:
+    from: ${MAIL_FROM:noreply@smartexam.com}
+    password-reset-url: ${PASSWORD_RESET_URL:http://localhost:5173/reset-password}
 
 # ── Actuator ───────────────────────────────────────────
 management:
