@@ -6,7 +6,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -14,27 +16,30 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Duration;
 
 /**
- * In-memory rate limiter for authentication endpoints.
+ * Redis-backed rate limiter for authentication endpoints.
  * Limits requests per IP to prevent brute-force attacks.
+ * Cluster-safe: works across multiple application instances.
  */
+@Slf4j
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private static final String KEY_PREFIX = "rate_limit:auth:";
+
     private final int maxRequests;
     private final long windowMs;
-
-    private final ConcurrentHashMap<String, RateWindow> clients = new ConcurrentHashMap<>();
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public RateLimitFilter(
+            StringRedisTemplate redisTemplate,
             @Value("${application.rate-limit.max-requests:10}") int maxRequests,
             @Value("${application.rate-limit.window-ms:60000}") long windowMs
     ) {
+        this.redisTemplate = redisTemplate;
         this.maxRequests = maxRequests;
         this.windowMs = windowMs;
     }
@@ -53,47 +58,34 @@ public class RateLimitFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         String clientIp = request.getRemoteAddr();
+        String key = KEY_PREFIX + clientIp;
 
-        // Cleanup old entries periodically (every ~100 requests)
-        if (clients.size() > 1000) {
-            long now = System.currentTimeMillis();
-            clients.entrySet().removeIf(e -> now - e.getValue().windowStart > windowMs * 2);
-        }
-
-        RateWindow window = clients.compute(clientIp, (key, existing) -> {
-            long now = System.currentTimeMillis();
-            if (existing == null || now - existing.windowStart > windowMs) {
-                return new RateWindow(now, new AtomicInteger(1));
+        try {
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1) {
+                // First request in window — set TTL
+                redisTemplate.expire(key, Duration.ofMillis(windowMs));
             }
-            existing.count.incrementAndGet();
-            return existing;
-        });
 
-        if (window.count.get() > maxRequests) {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            if (count != null && count > maxRequests) {
+                response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-            ApiResponse<Void> body = ApiResponse.error(
-                    "SE_CMN_008",
-                    "Terlalu banyak permintaan",
-                    "Coba lagi dalam 1 menit"
-            );
+                ApiResponse<Void> body = ApiResponse.error(
+                        "SE_CMN_008",
+                        "Terlalu banyak permintaan",
+                        "Coba lagi dalam 1 menit"
+                );
 
-            objectMapper.findAndRegisterModules();
-            objectMapper.writeValue(response.getOutputStream(), body);
-            return;
+                objectMapper.findAndRegisterModules();
+                objectMapper.writeValue(response.getOutputStream(), body);
+                return;
+            }
+        } catch (Exception e) {
+            // If Redis is down, allow the request (fail-open) but log the issue
+            log.warn("Rate limiter Redis error, allowing request: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private static class RateWindow {
-        final long windowStart;
-        final AtomicInteger count;
-
-        RateWindow(long windowStart, AtomicInteger count) {
-            this.windowStart = windowStart;
-            this.count = count;
-        }
     }
 }
