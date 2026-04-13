@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -24,11 +25,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_REQUESTS = 10;
-    private static final long WINDOW_MS = 60_000; // 1 minute
+    private final int maxRequests;
+    private final long windowMs;
 
     private final ConcurrentHashMap<String, RateWindow> clients = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public RateLimitFilter(
+            @Value("${application.rate-limit.max-requests:10}") int maxRequests,
+            @Value("${application.rate-limit.window-ms:60000}") long windowMs
+    ) {
+        this.maxRequests = maxRequests;
+        this.windowMs = windowMs;
+    }
 
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
@@ -48,19 +57,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // Cleanup old entries periodically (every ~100 requests)
         if (clients.size() > 1000) {
             long now = System.currentTimeMillis();
-            clients.entrySet().removeIf(e -> now - e.getValue().windowStart > WINDOW_MS * 2);
+            clients.entrySet().removeIf(e -> now - e.getValue().windowStart > windowMs * 2);
         }
 
         RateWindow window = clients.compute(clientIp, (key, existing) -> {
             long now = System.currentTimeMillis();
-            if (existing == null || now - existing.windowStart > WINDOW_MS) {
+            if (existing == null || now - existing.windowStart > windowMs) {
                 return new RateWindow(now, new AtomicInteger(1));
             }
             existing.count.incrementAndGet();
             return existing;
         });
 
-        if (window.count.get() > MAX_REQUESTS) {
+        if (window.count.get() > maxRequests) {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 

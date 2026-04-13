@@ -50,6 +50,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.isTokenValid(jwt, userDetails)) {
+                    // Reject tokens for disabled or suspended accounts
+                    if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+                        logger.debug("Token valid tapi akun non-aktif/terkunci: " + username);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,

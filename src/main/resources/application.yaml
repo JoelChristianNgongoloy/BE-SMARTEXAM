@@ -85,6 +85,9 @@ application:
   mail:
     from: ${MAIL_FROM:noreply@smartexam.com}
     password-reset-url: ${PASSWORD_RESET_URL:http://localhost:5173/reset-password}
+  rate-limit:
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:10}
+    window-ms: ${RATE_LIMIT_WINDOW_MS:60000}
 
 # ── Actuator ───────────────────────────────────────────
 management:

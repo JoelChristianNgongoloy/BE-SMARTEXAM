@@ -82,12 +82,9 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
-        } catch (BadCredentialsException e) {
+        } catch (BadCredentialsException | DisabledException | LockedException e) {
+            log.warn("Login gagal untuk email: [MASKED] — alasan: {}", e.getClass().getSimpleName());
             throw new BusinessException(ErrorCode.SE_AUT_001, "Email atau password salah");
-        } catch (DisabledException e) {
-            throw new BusinessException(ErrorCode.SE_AUT_003, "Akun belum aktif atau dinonaktifkan");
-        } catch (LockedException e) {
-            throw new BusinessException(ErrorCode.SE_AUT_003, "Akun telah disuspend");
         }
 
         User user = userRepository.findByEmailWithRoles(request.getEmail())
@@ -113,6 +110,8 @@ public class AuthService {
                 .map(ur -> ur.getRole().getName())
                 .toList();
 
+        log.info("Login berhasil untuk user ID: {}", user.getId());
+
         return LoginResponse.builder()
                 .token(accessToken)
                 .refreshToken(refreshToken)
@@ -129,6 +128,8 @@ public class AuthService {
         List<UserSession> sessions = userSessionRepository
                 .findByUserIdAndExpiredAtAfterOrderByLastActiveDesc(user.getId(), LocalDateTime.now());
         userSessionRepository.deleteAll(sessions);
+
+        log.info("Logout: {} sesi dihapus untuk user ID: {}", sessions.size(), user.getId());
     }
 
     @Transactional
@@ -213,6 +214,8 @@ public class AuthService {
         // Delete used token
         passwordResetRepository.delete(passwordReset);
 
+        log.info("Password reset berhasil untuk user ID: {}", user.getId());
+
         log.debug("Password reset berhasil untuk user: {}", user.getEmail());
     }
 
@@ -259,6 +262,8 @@ public class AuthService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+
+        log.info("Password diubah untuk user ID: {}", user.getId());
     }
 
     @Transactional(readOnly = true)
@@ -286,6 +291,8 @@ public class AuthService {
         }
 
         userSessionRepository.delete(session);
+
+        log.info("Sesi {} dicabut untuk user ID: {}", sessionId, user.getId());
     }
 
     // ── Helper Methods ──────────────────────────────────────────

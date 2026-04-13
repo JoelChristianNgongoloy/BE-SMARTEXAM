@@ -1,0 +1,26 @@
+# ── Production Profile ──────────────────────────────────
+# Usage: spring.profiles.active=prod
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Disable Flyway auto-migrate in prod (run manually)
+  # flyway:
+  #   enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.tujuhsembilan.smartedutelu: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+# Stricter rate limiting for production
+application:
+  rate-limit:
+    max-requests: 5
+    window-ms: 60000
