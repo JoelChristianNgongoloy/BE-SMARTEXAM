@@ -12,6 +12,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * Base entity yang menyediakan field audit standar (created/updated).
+ * Gunakan {@code extends BaseEntity} di entity baru agar otomatis punya audit trail.
+ *
+ * <p>Catatan: Entity yang sudah ada (User, dll) belum menggunakan BaseEntity ini
+ * karena skema DB dibuat terpisah. Entity baru disarankan meng-extend class ini.</p>
+ */
 @Data
 @SuperBuilder
 @NoArgsConstructor

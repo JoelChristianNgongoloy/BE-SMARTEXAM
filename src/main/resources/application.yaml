@@ -75,7 +75,7 @@ spring:
 application:
   security:
     jwt:
-      secret-key: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      secret-key: ${JWT_SECRET}
       expiration-ms: ${JWT_EXPIRATION:86400000} # 1 Hari (access token)
       refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000} # 7 Hari (refresh token)
   cors:
@@ -100,7 +100,7 @@ management:
 logging:
   level:
     root: INFO
-    com.tujuhsembilan.smartedutelu: DEBUG
-    org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.tujuhsembilan.smartedutelu: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL:WARN}

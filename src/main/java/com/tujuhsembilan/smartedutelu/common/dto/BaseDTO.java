@@ -3,6 +3,10 @@ package com.tujuhsembilan.smartedutelu.common.dto;
 import lombok.Data;
 import java.time.LocalDateTime;
 
+/**
+ * Base DTO yang menyediakan field audit standar untuk response ke frontend.
+ * Extend class ini di DTO baru yang butuh info created/modified.
+ */
 @Data
 public abstract class BaseDTO {
 
