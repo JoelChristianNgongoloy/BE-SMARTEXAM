@@ -1,17 +1,17 @@
 package com.tujuhsembilan.smartedutelu.domain.identity.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(exclude = "user")
 @Entity
 @Table(name = "user_roles", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"user_id", "role_id"})
@@ -20,6 +20,7 @@ public class UserRole {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -16,6 +16,7 @@ public class UpdateProfileRequest {
     @Size(max = 50, message = "Nomor telepon maksimal 50 karakter")
     private String phone;
 
+    @Size(max = 2048, message = "URL foto maksimal 2048 karakter")
     private String picture;
 
     @Size(max = 10, message = "Locale maksimal 10 karakter")

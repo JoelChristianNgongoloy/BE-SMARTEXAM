@@ -61,9 +61,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
+        } catch (io.jsonwebtoken.ExpiredJwtException ex) {
+            logger.debug("JWT token expired for request: " + request.getRequestURI());
+        } catch (io.jsonwebtoken.security.SignatureException ex) {
+            logger.warn("Invalid JWT signature from IP " + request.getRemoteAddr() + ": " + ex.getMessage());
+        } catch (io.jsonwebtoken.MalformedJwtException | io.jsonwebtoken.UnsupportedJwtException ex) {
+            logger.warn("Malformed/unsupported JWT: " + ex.getMessage());
         } catch (Exception ex) {
-            // Biarkan lewat, jika token tidak valid akan ditangkap oleh AuthenticationEntryPoint
-            logger.error("Gagal melakukan otentikasi pengguna: " + ex.getMessage());
+            logger.error("JWT processing error: " + ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

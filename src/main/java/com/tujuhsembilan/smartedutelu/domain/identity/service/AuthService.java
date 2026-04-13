@@ -28,8 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -106,12 +106,12 @@ public class AuthService {
                 .build();
         session = userSessionRepository.save(session);
 
-        String accessToken = jwtUtil.generateToken(new java.util.HashMap<>(), userDetails);
+        String accessToken = jwtUtil.generateToken(Map.of(), userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails, session.getId());
 
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
-                .collect(Collectors.toList());
+                .toList();
 
         return LoginResponse.builder()
                 .token(accessToken)
@@ -167,12 +167,12 @@ public class AuthService {
         User user = userRepository.findByEmailWithRoles(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", email));
 
-        String newAccessToken = jwtUtil.generateToken(new java.util.HashMap<>(), userDetails);
+        String newAccessToken = jwtUtil.generateToken(Map.of(), userDetails);
         String newRefreshToken = jwtUtil.generateRefreshToken(userDetails, sessionId);
 
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
-                .collect(Collectors.toList());
+                .toList();
 
         return LoginResponse.builder()
                 .token(newAccessToken)
@@ -213,7 +213,7 @@ public class AuthService {
         // Delete used token
         passwordResetRepository.delete(passwordReset);
 
-        log.info("Password reset berhasil untuk user: {}", user.getEmail());
+        log.debug("Password reset berhasil untuk user: {}", user.getEmail());
     }
 
     @Transactional(readOnly = true)
@@ -223,7 +223,7 @@ public class AuthService {
 
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
-                .collect(Collectors.toList());
+                .toList();
 
         return toUserResponse(user, roles);
     }
@@ -243,7 +243,7 @@ public class AuthService {
 
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
-                .collect(Collectors.toList());
+                .toList();
 
         return toUserResponse(user, roles);
     }
@@ -270,7 +270,7 @@ public class AuthService {
                 .findByUserIdAndExpiredAtAfterOrderByLastActiveDesc(user.getId(), LocalDateTime.now())
                 .stream()
                 .map(this::toSessionResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional

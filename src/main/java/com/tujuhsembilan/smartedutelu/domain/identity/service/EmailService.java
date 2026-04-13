@@ -41,9 +41,9 @@ public class EmailService {
             );
 
             mailSender.send(message);
-            log.info("Password reset email sent to {}", toEmail);
+            log.debug("Password reset email sent to {}", toEmail);
         } catch (Exception e) {
-            log.error("Gagal mengirim email reset password ke {}: {}", toEmail, e.getMessage());
+            log.error("Gagal mengirim email reset password: {}", e.getMessage());
         }
     }
 }

@@ -49,7 +49,7 @@ public class DataSeeder implements ApplicationRunner {
 
         for (SeedUser seed : seeds) {
             if (userRepository.existsByEmail(seed.email())) {
-                log.info("Seed user already exists: {}", seed.email());
+                log.debug("Seed user already exists: {}", seed.email());
                 continue;
             }
 
@@ -69,7 +69,7 @@ public class DataSeeder implements ApplicationRunner {
                     .role(role)
                     .build());
 
-            log.info("Seeded user: {} [{}]", seed.email(), seed.roleName());
+            log.info("Seeded user: {} [{}]", seed.name(), seed.roleName());
         }
     }
 

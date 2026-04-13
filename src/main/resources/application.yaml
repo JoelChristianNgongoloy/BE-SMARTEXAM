@@ -81,7 +81,7 @@ application:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
   seeder:
-    enabled: ${SEEDER_ENABLED:true}
+    enabled: ${SEEDER_ENABLED:false}
   mail:
     from: ${MAIL_FROM:noreply@smartexam.com}
     password-reset-url: ${PASSWORD_RESET_URL:http://localhost:5173/reset-password}

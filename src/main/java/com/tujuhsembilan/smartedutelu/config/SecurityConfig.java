@@ -3,6 +3,7 @@ package com.tujuhsembilan.smartedutelu.config;
 import com.tujuhsembilan.smartedutelu.common.security.CustomAccessDeniedHandler;
 import com.tujuhsembilan.smartedutelu.common.security.CustomAuthenticationEntryPoint;
 import com.tujuhsembilan.smartedutelu.common.security.JwtAuthenticationFilter;
+import com.tujuhsembilan.smartedutelu.common.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UserDetailsService userDetailsService;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
@@ -80,6 +82,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -141,7 +141,7 @@ public class GlobalExceptionHandler {
         ApiResponse<Void> response = ApiResponse.error(
                 ErrorCode.SE_CMN_004.getCode(),
                 ErrorCode.SE_CMN_004.getMessage(),
-                "You don't have permission to access this resource"
+                "Anda tidak memiliki wewenang untuk mengakses sumber daya ini"
         );
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
