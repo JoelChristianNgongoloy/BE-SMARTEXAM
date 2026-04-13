@@ -8,6 +8,7 @@ import com.tujuhsembilan.smartedutelu.domain.identity.repository.UserRepository;
 import com.tujuhsembilan.smartedutelu.domain.identity.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,9 +27,16 @@ public class DataSeeder implements ApplicationRunner {
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${application.seeder.enabled:true}")
+    private boolean seederEnabled;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (!seederEnabled) {
+            log.info("DataSeeder disabled via configuration");
+            return;
+        }
         seedUsers();
     }
 

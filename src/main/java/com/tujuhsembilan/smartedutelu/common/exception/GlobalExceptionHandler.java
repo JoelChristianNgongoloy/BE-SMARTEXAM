@@ -169,7 +169,7 @@ public class GlobalExceptionHandler {
         ApiResponse<Void> response = ApiResponse.error(
                 ErrorCode.SE_CMN_005.getCode(),
                 ErrorCode.SE_CMN_005.getMessage(),
-                ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred"
+                "Terjadi kesalahan internal pada server"
         );
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
