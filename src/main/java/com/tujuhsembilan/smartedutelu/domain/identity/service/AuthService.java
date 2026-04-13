@@ -138,8 +138,15 @@ public class AuthService {
         String email;
         UUID sessionId;
         try {
+            // Validate token type is "refresh" — prevents access token reuse
+            String tokenType = jwtUtil.extractTokenType(refreshToken);
+            if (!"refresh".equals(tokenType)) {
+                throw new BusinessException(ErrorCode.SE_AUT_002, "Token bukan refresh token");
+            }
             email = jwtUtil.extractUsername(refreshToken);
             sessionId = jwtUtil.extractSessionId(refreshToken);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SE_AUT_002, "Refresh token tidak valid");
         }
@@ -321,10 +328,26 @@ public class AuthService {
     }
 
     private boolean isPrivateOrLoopback(String ip) {
-        return ip.startsWith("10.") || ip.startsWith("172.16.") || ip.startsWith("172.17.")
-                || ip.startsWith("172.18.") || ip.startsWith("172.19.") || ip.startsWith("172.2")
-                || ip.startsWith("172.30.") || ip.startsWith("172.31.")
-                || ip.startsWith("192.168.") || ip.startsWith("127.") || "0:0:0:0:0:0:0:1".equals(ip);
+        if (ip == null) return false;
+        // IPv4 loopback
+        if (ip.startsWith("127.")) return true;
+        // IPv4 private ranges (RFC 1918)
+        if (ip.startsWith("10.")) return true;
+        if (ip.startsWith("192.168.")) return true;
+        if (ip.startsWith("172.")) {
+            try {
+                int second = Integer.parseInt(ip.split("\\.")[1]);
+                if (second >= 16 && second <= 31) return true;
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+                return false;
+            }
+        }
+        // IPv6 loopback
+        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) return true;
+        // IPv6 private (fc00::/7, fe80::/10)
+        String lower = ip.toLowerCase();
+        if (lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80")) return true;
+        return false;
     }
 
     private String parseDevice(String userAgent) {

@@ -33,6 +33,10 @@ public class JwtUtil {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("type", String.class));
+    }
+
     public UUID extractSessionId(String token) {
         String sessionId = extractClaim(token, claims -> claims.get("sessionId", String.class));
         return sessionId != null ? UUID.fromString(sessionId) : null;
@@ -49,6 +53,7 @@ public class JwtUtil {
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        extraClaims.put("type", "access");
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 
