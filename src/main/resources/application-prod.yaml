@@ -19,6 +19,12 @@ logging:
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
+# Disable mail health indicator (no SMTP in staging)
+management:
+  health:
+    mail:
+      enabled: false
+
 # Stricter rate limiting for production
 application:
   rate-limit:
