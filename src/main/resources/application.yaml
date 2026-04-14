@@ -74,7 +74,7 @@ spring:
 application:
   security:
     jwt:
-      secret-key: ${JWT_SECRET}
+      secret-key: ${JWT_SECRET:dGhpc0lzQVN1cGVyU2VjcmV0S2V5Rm9yRGV2ZWxvcG1lbnRPbmx5UGxlYXNlQ2hhbmdlSW5Qcm9k}
       expiration-ms: ${JWT_EXPIRATION:86400000} # 1 Hari (access token)
       refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000} # 7 Hari (refresh token)
   cors:

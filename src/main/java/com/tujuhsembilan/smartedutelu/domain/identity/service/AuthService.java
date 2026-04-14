@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -103,7 +104,7 @@ public class AuthService {
                 .build();
         session = userSessionRepository.save(session);
 
-        String accessToken = jwtUtil.generateToken(Map.of(), userDetails);
+        String accessToken = jwtUtil.generateToken(new HashMap<>(), userDetails);
         String refreshToken = jwtUtil.generateRefreshToken(userDetails, session.getId());
 
         List<String> roles = user.getUserRoles().stream()
