@@ -5,14 +5,15 @@
 
 services:
   # ── Spring Boot App ───────────────────────────────────
+  # Nginx global di host reverse proxy ke port 8080
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: smartedutelu-app
     restart: unless-stopped
-    expose:
-      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
     env_file: .env
     environment:
       SERVER_PORT: 8080
@@ -88,44 +89,10 @@ services:
       start_period: 10s
       retries: 5
 
-  # ── Nginx Reverse Proxy + SSL ─────────────────────────
-  nginx:
-    image: nginx:alpine
-    container_name: smartedutelu-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - certbot-webroot:/var/www/certbot:ro
-      - certbot-certs:/etc/letsencrypt:ro
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - smartedutelu-net
-
-  # ── Certbot (SSL Certificate) ────────────────────────
-  certbot:
-    image: certbot/certbot
-    container_name: smartedutelu-certbot
-    volumes:
-      - certbot-webroot:/var/www/certbot
-      - certbot-certs:/etc/letsencrypt
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 6h & wait $${!}; certbot renew --webroot -w /var/www/certbot --quiet; done'"
-    networks:
-      - smartedutelu-net
-
 volumes:
   postgres-data:
     driver: local
   redis-data:
-    driver: local
-  certbot-webroot:
-    driver: local
-  certbot-certs:
     driver: local
 
 networks:

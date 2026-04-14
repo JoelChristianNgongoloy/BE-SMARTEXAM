@@ -1,8 +1,9 @@
 # 🚀 Deployment Guide — SmartExam Backend
 
 > **Domain:** `besmartexam.jiilan.me`  
-> **Stack:** Docker Compose + Nginx + Let's Encrypt SSL  
+> **Stack:** Docker Compose + Nginx (global/host) + Let's Encrypt SSL  
 > **VPS minimum:** 1 vCPU, 2GB RAM, 20GB disk  
+> **Catatan:** Nginx sudah ter-install global di VPS — kita pakai itu sebagai reverse proxy, bukan Nginx di Docker.
 
 ---
 
@@ -24,13 +25,13 @@
 
 ## 1. Prerequisites VPS
 
-SSH ke VPS, lalu install:
+SSH ke VPS, pastikan sudah ter-install:
 
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
 
-# Install Docker
+# Install Docker (kalau belum)
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 
@@ -40,6 +41,9 @@ sudo apt install docker-compose-plugin -y
 # Install Make & Git
 sudo apt install make git -y
 
+# Install Certbot untuk Nginx (SSL Let's Encrypt)
+sudo apt install certbot python3-certbot-nginx -y
+
 # Logout & login ulang supaya docker group aktif
 exit
 ```
@@ -48,8 +52,9 @@ Verifikasi:
 ```bash
 docker --version        # Docker 24+
 docker compose version  # v2.x
+nginx -v                # nginx/1.x
+certbot --version       # certbot 2.x
 git --version
-make --version
 ```
 
 ### Firewall
@@ -156,101 +161,89 @@ openssl rand -base64 64
 
 ## 4. Deploy (Step-by-step)
 
-### Step 1: Start dengan HTTP dulu (tanpa SSL)
-
-Pakai Nginx config yang HTTP-only dulu untuk Certbot challenge:
+### Step 1: Start Docker containers (app + postgres + redis)
 
 ```bash
-# Pakai config init (HTTP only)
-cp nginx/conf.d/default.conf.init nginx/conf.d/default.conf.bak
-cp nginx/conf.d/default.conf nginx/conf.d/default.conf.ssl
-cp nginx/conf.d/default.conf.init nginx/conf.d/default.conf
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Start semua service **tanpa** nginx dulu:
-
-```bash
-docker compose -f docker-compose.prod.yml up -d postgres redis
-```
-
-Tunggu sampai healthy:
+Tunggu sampai semua healthy:
 ```bash
 docker compose -f docker-compose.prod.yml ps
-# Pastikan postgres dan redis status "healthy"
+# Pastikan postgres, redis, app semua "healthy" / "running"
 ```
 
-Build & start app:
+Cek logs app:
 ```bash
-docker compose -f docker-compose.prod.yml up -d app --build
-```
-
-Tunggu app healthy (~60 detik):
-```bash
-# Cek logs
 docker compose -f docker-compose.prod.yml logs -f app
-
-# Tunggu sampai muncul: "Started SmarteduteluApplication in X seconds"
-# Ctrl+C untuk keluar logs
+# Tunggu sampai: "Started SmarteduteluApplication in X seconds"
+# Ctrl+C untuk keluar
 ```
 
-Start Nginx:
+Test app langsung (dari VPS):
 ```bash
-docker compose -f docker-compose.prod.yml up -d nginx
-```
-
-Test HTTP:
-```bash
-curl http://besmartexam.jiilan.me/api/actuator/health
+curl http://127.0.0.1:8080/api/actuator/health
 # Harus return: {"status":"UP"}
 ```
+
+> App bind ke `127.0.0.1:8080` — hanya bisa diakses dari VPS sendiri (localhost), tidak terbuka ke internet.
+
+### Step 2: Setup Nginx reverse proxy
+
+Copy site config dari repo ke Nginx global:
+
+```bash
+sudo cp nginx/conf.d/default.conf /etc/nginx/sites-available/besmartexam.jiilan.me
+sudo ln -sf /etc/nginx/sites-available/besmartexam.jiilan.me /etc/nginx/sites-enabled/
+```
+
+Test config:
+```bash
+sudo nginx -t
+```
+
+> ⚠️ Kalau error SSL certificate not found — itu normal! Kita issue SSL di step berikutnya.  
+> Untuk sementara, comment dulu block `server { listen 443 ... }` atau langsung lanjut ke step SSL.
 
 ---
 
 ## 5. Issue SSL Certificate
 
-Sekarang Nginx sudah jalan di HTTP, kita bisa issue SSL certificate via Let's Encrypt:
+Pakai Certbot bawaan VPS — otomatis konfigurasi Nginx:
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-    --webroot \
-    --webroot-path=/var/www/certbot \
-    --email your-email@gmail.com \
-    --agree-tos \
-    --no-eff-email \
-    -d besmartexam.jiilan.me
+sudo certbot --nginx -d besmartexam.jiilan.me
 ```
 
-> Ganti `your-email@gmail.com` dengan email kamu (untuk notifikasi expiry).
+Certbot akan:
+1. Verifikasi domain (HTTP challenge via Nginx)
+2. Issue SSL certificate dari Let's Encrypt
+3. **Otomatis modify** config Nginx untuk SSL
+4. Setup auto-renewal
 
-Kalau berhasil, output:
+> Ikuti prompt — masukkan email dan accept Terms of Service.
+
+Kalau berhasil:
 ```
 Successfully received certificate.
 Certificate is saved at: /etc/letsencrypt/live/besmartexam.jiilan.me/fullchain.pem
-Key is saved at:         /etc/letsencrypt/live/besmartexam.jiilan.me/privkey.pem
+```
+
+Verifikasi auto-renewal:
+```bash
+sudo certbot renew --dry-run
 ```
 
 ---
 
-## 6. Enable HTTPS
+## 6. Verifikasi Deployment
 
-Sekarang switch ke Nginx config yang full HTTPS:
-
+### Reload Nginx (kalau belum)
 ```bash
-# Restore config SSL
-cp nginx/conf.d/default.conf.ssl nginx/conf.d/default.conf
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Reload Nginx:
-```bash
-docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
-```
-
-Start Certbot auto-renewal:
-```bash
-docker compose -f docker-compose.prod.yml up -d certbot
-```
-
-Test HTTPS:
+### Test HTTPS
 ```bash
 curl https://besmartexam.jiilan.me/api/actuator/health
 # Harus return: {"status":"UP"}
@@ -258,12 +251,7 @@ curl https://besmartexam.jiilan.me/api/actuator/health
 
 ---
 
-## 7. Verifikasi
-
-### Health Check
-```bash
-curl -s https://besmartexam.jiilan.me/api/actuator/health | python3 -m json.tool
-```
+## 7. Test API Endpoints
 
 ### Test Register
 ```bash
@@ -303,30 +291,37 @@ Atau cek di: https://www.ssllabs.com/ssltest/analyze.html?d=besmartexam.jiilan.m
 ```bash
 cd /opt/smartexam/besmartedutelu
 
-# ── Status ──────────────────────────────────────────
+# ── Docker Status ───────────────────────────────────
 docker compose -f docker-compose.prod.yml ps
 
 # ── Logs ────────────────────────────────────────────
 docker compose -f docker-compose.prod.yml logs -f           # Semua
 docker compose -f docker-compose.prod.yml logs -f app       # App saja
-docker compose -f docker-compose.prod.yml logs -f nginx     # Nginx saja
 docker compose -f docker-compose.prod.yml logs -f postgres  # DB saja
 
-# ── Restart ─────────────────────────────────────────
+# ── Restart App ─────────────────────────────────────
 docker compose -f docker-compose.prod.yml restart app
-docker compose -f docker-compose.prod.yml restart nginx
 
-# ── Stop semua ──────────────────────────────────────
+# ── Stop semua containers ───────────────────────────
 docker compose -f docker-compose.prod.yml down
 
-# ── Start semua ─────────────────────────────────────
+# ── Start semua containers ──────────────────────────
 docker compose -f docker-compose.prod.yml up -d
 
 # ── DB Shell ────────────────────────────────────────
 docker exec -it smartedutelu-postgres psql -U postgres -d smartedutelu
 
-# ── Renew SSL manual ───────────────────────────────
-docker compose -f docker-compose.prod.yml run --rm certbot renew
+# ── Nginx (global) ─────────────────────────────────
+sudo nginx -t                      # Test config
+sudo systemctl reload nginx        # Reload config
+sudo systemctl restart nginx       # Restart Nginx
+sudo tail -f /var/log/nginx/besmartexam.access.log   # Access log
+sudo tail -f /var/log/nginx/besmartexam.error.log    # Error log
+
+# ── SSL ─────────────────────────────────────────────
+sudo certbot renew --dry-run       # Test renewal
+sudo certbot renew                 # Manual renew
+sudo certbot certificates          # List certificates
 
 # ── Disk usage ──────────────────────────────────────
 docker system df
@@ -378,18 +373,17 @@ sudo nano /etc/docker/daemon.json
 sudo systemctl restart docker
 ```
 
-### Cron: SSL Auto-Renew (backup)
+### Cron: SSL Auto-Renew
 
-Certbot container sudah handle auto-renew, tapi buat backup via cron:
+Certbot sudah otomatis setup systemd timer saat install. Verifikasi:
 
 ```bash
-sudo crontab -e
+sudo systemctl status certbot.timer
 ```
 
-Tambahkan:
-```cron
-# Renew SSL setiap hari Senin jam 03:00
-0 3 * * 1 cd /opt/smartexam/besmartedutelu && docker compose -f docker-compose.prod.yml run --rm certbot renew --quiet && docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+Kalau tidak aktif, aktifkan:
+```bash
+sudo systemctl enable --now certbot.timer
 ```
 
 ### Cron: Docker Cleanup
@@ -422,8 +416,11 @@ docker compose -f docker-compose.prod.yml exec app env | grep -E "DB_|JWT|REDIS"
 # App belum healthy — cek status
 docker compose -f docker-compose.prod.yml ps
 
-# Cek apakah app bisa diakses dari internal
-docker compose -f docker-compose.prod.yml exec nginx wget -qO- http://app:8080/api/actuator/health
+# Cek apakah app bisa diakses dari localhost
+curl http://127.0.0.1:8080/api/actuator/health
+
+# Cek Nginx error log
+sudo tail -20 /var/log/nginx/besmartexam.error.log
 ```
 
 ### SSL certificate gagal
@@ -435,14 +432,11 @@ dig besmartexam.jiilan.me +short
 # Pastikan port 80 terbuka
 sudo ufw status
 
-# Cek Nginx error log
-docker compose -f docker-compose.prod.yml logs nginx
+# Pastikan Nginx jalan
+sudo systemctl status nginx
 
 # Retry issue certificate
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-    --webroot --webroot-path=/var/www/certbot \
-    --email your-email@gmail.com --agree-tos --no-eff-email \
-    -d besmartexam.jiilan.me --force-renewal
+sudo certbot --nginx -d besmartexam.jiilan.me --force-renewal
 ```
 
 ### Database connection refused
@@ -489,36 +483,40 @@ docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWOR
 └────┬─────┘
      │
      ▼
-┌──────────────────────────────────────────────┐
-│  VPS                                         │
-│                                              │
-│  ┌────────────────────────────────────────┐  │
-│  │  Docker Compose (prod)                 │  │
-│  │                                        │  │
-│  │  ┌──────────┐     ┌────────────────┐   │  │
-│  │  │  Nginx   │────▶│  Spring Boot   │   │  │
-│  │  │  :80/443 │     │  :8080 (内部)  │   │  │
-│  │  │  SSL+RP  │     │  /api/*        │   │  │
-│  │  └──────────┘     └───────┬────────┘   │  │
-│  │       │                   │            │  │
-│  │  ┌────┴────┐    ┌────────┴─────────┐   │  │
-│  │  │Certbot  │    │    PostgreSQL    │   │  │
-│  │  │(renew)  │    │    :5432 (内部)  │   │  │
-│  │  └─────────┘    └─────────────────┘   │  │
-│  │                 ┌─────────────────┐   │  │
-│  │                 │     Redis       │   │  │
-│  │                 │  :6379 (内部)   │   │  │
-│  │                 └─────────────────┘   │  │
-│  └────────────────────────────────────────┘  │
-│                                              │
-│  Firewall: hanya port 22, 80, 443 terbuka    │
-└──────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│  VPS                                                  │
+│                                                       │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │  Nginx (global, host-level)                     │  │
+│  │  :80 (redirect) / :443 (SSL termination)        │  │
+│  │  Certbot auto-renew via systemd timer           │  │
+│  └────────────┬────────────────────────────────────┘  │
+│               │ proxy_pass http://127.0.0.1:8080      │
+│               ▼                                       │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │  Docker Compose (prod)                          │  │
+│  │                                                 │  │
+│  │  ┌────────────────┐                             │  │
+│  │  │  Spring Boot   │ 127.0.0.1:8080 (loopback)  │  │
+│  │  │  /api/*        │                             │  │
+│  │  └───────┬────────┘                             │  │
+│  │          │                                      │  │
+│  │  ┌───────┴─────────┐  ┌─────────────────┐      │  │
+│  │  │   PostgreSQL    │  │     Redis       │      │  │
+│  │  │   :5432 (内部)  │  │  :6379 (内部)   │      │  │
+│  │  └─────────────────┘  └─────────────────┘      │  │
+│  └─────────────────────────────────────────────────┘  │
+│                                                       │
+│  Firewall: hanya port 22, 80, 443 terbuka             │
+└───────────────────────────────────────────────────────┘
 ```
 
 > **Catatan:**  
-> - Postgres & Redis **TIDAK** expose port ke luar — hanya bisa diakses via Docker internal network  
-> - Nginx handle SSL termination — traffic ke Spring Boot **HTTP biasa** (internal)  
-> - Certbot auto-renew SSL setiap 6 jam (cek) + cron backup mingguan
+> - Nginx **global** di host — bukan di Docker (tidak konflik dengan site lain)  
+> - App bind ke `127.0.0.1:8080` — hanya bisa diakses dari localhost  
+> - Postgres & Redis **TIDAK** expose port ke luar — Docker internal network  
+> - Nginx handle SSL termination — traffic ke Spring Boot HTTP biasa  
+> - Certbot auto-renew via systemd timer (otomatis saat install `python3-certbot-nginx`)
 
 ---
 
@@ -528,11 +526,11 @@ docker compose -f docker-compose.prod.yml exec redis redis-cli -a $REDIS_PASSWOR
 # 1. SSH ke VPS
 ssh user@<IP_VPS>
 
-# 2. Install Docker + Make + Git
+# 2. Install Docker + Certbot (kalau belum)
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER && exit
 # Login ulang
-sudo apt install docker-compose-plugin make git -y
+sudo apt install docker-compose-plugin make git certbot python3-certbot-nginx -y
 
 # 3. Firewall
 sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw enable
@@ -542,21 +540,15 @@ cd /opt && sudo mkdir -p smartexam && sudo chown $USER:$USER smartexam
 cd smartexam && git clone <REPO> besmartedutelu && cd besmartedutelu
 cp .env.example .env && nano .env  # Edit semua password + JWT_SECRET
 
-# 5. Deploy (HTTP dulu)
-cp nginx/conf.d/default.conf nginx/conf.d/default.conf.ssl
-cp nginx/conf.d/default.conf.init nginx/conf.d/default.conf
+# 5. Deploy Docker containers
 docker compose -f docker-compose.prod.yml up -d --build
 
-# 6. Issue SSL
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
-    --webroot --webroot-path=/var/www/certbot \
-    --email you@email.com --agree-tos --no-eff-email \
-    -d besmartexam.jiilan.me
+# 6. Setup Nginx site
+sudo cp nginx/conf.d/default.conf /etc/nginx/sites-available/besmartexam.jiilan.me
+sudo ln -sf /etc/nginx/sites-available/besmartexam.jiilan.me /etc/nginx/sites-enabled/
 
-# 7. Enable HTTPS
-cp nginx/conf.d/default.conf.ssl nginx/conf.d/default.conf
-docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
-docker compose -f docker-compose.prod.yml up -d certbot
+# 7. Issue SSL (otomatis configure Nginx)
+sudo certbot --nginx -d besmartexam.jiilan.me
 
 # 8. Verify
 curl https://besmartexam.jiilan.me/api/actuator/health

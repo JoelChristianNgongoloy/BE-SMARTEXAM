@@ -19,13 +19,6 @@ logging:
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
-# Disable Swagger UI in production
-springdoc:
-  api-docs:
-    enabled: false
-  swagger-ui:
-    enabled: false
-
 # Stricter rate limiting for production
 application:
   rate-limit:
